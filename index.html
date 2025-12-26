@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Announcement</title>
 
 <script type="module">
@@ -28,12 +29,10 @@ const db = getFirestore(app);
 const postRef = doc(db,"posts","announcement");
 const commentsRef = collection(postRef,"comments");
 
-/* helpers */
 const format = n =>
   n>=1e6 ? (n/1e6).toFixed(1)+"M" :
   n>=1e3 ? (n/1e3).toFixed(1)+"K" : n;
 
-/* 🔒 INITIALIZE ONLY ONCE */
 const snap = await getDoc(postRef);
 if(!snap.exists()){
   await setDoc(postRef,{
@@ -44,23 +43,20 @@ if(!snap.exists()){
   });
 }
 
-/* REALTIME STATS */
 onSnapshot(postRef,s=>{
   const d=s.data();
-  document.getElementById("views").innerText = format(d.views);
-  document.getElementById("likes").innerText = format(d.likes);
-  document.getElementById("shares").innerText = format(d.shares);
-  document.getElementById("cCount").innerText = format(d.commentsCount);
+  views.innerText=format(d.views);
+  likes.innerText=format(d.likes);
+  shares.innerText=format(d.shares);
+  cCount.innerText=format(d.commentsCount);
 });
 
-/* LOAD COMMENTS */
-const q = query(commentsRef, orderBy("time","desc"), limit(100));
+const q=query(commentsRef,orderBy("time","desc"),limit(100));
 onSnapshot(q,snap=>{
-  const box = document.getElementById("comments");
-  box.innerHTML="";
+  comments.innerHTML="";
   snap.forEach(d=>{
     const c=d.data();
-    box.innerHTML+=`
+    comments.innerHTML+=`
       <div class="comment">
         <div class="avatar">${c.name[0]}</div>
         <div>
@@ -71,80 +67,40 @@ onSnapshot(q,snap=>{
   });
 });
 
-/* AUTO VIEWS (safe) */
 if(!sessionStorage.getItem("viewed")){
   updateDoc(postRef,{views:increment(1)});
   sessionStorage.setItem("viewed","1");
 }
 
-/* 👍 LIKE (ONE TIME PER USER) */
-function like(){
-  if(localStorage.getItem("liked_post")){
-    alert("Aap already like kar chuke ho ❤️");
-    return;
-  }
-
-  const btn = document.getElementById("likeBtn");
-  btn.classList.add("pop");
-
+likeBtn.onclick=()=>{
+  if(localStorage.getItem("liked_post")) return alert("Already liked ❤️");
   updateDoc(postRef,{likes:increment(1)});
   localStorage.setItem("liked_post","1");
+  likeBtn.innerText="❤️ Liked";
+  likeBtn.disabled=true;
+};
 
-  btn.disabled=true;
-  btn.innerText="❤️ Liked";
-  btn.style.opacity="0.6";
-
-  setTimeout(()=>btn.classList.remove("pop"),300);
-}
-
-/* 🔁 SHARE */
-async function sharePost(){
+shareBtn.onclick=async()=>{
   updateDoc(postRef,{shares:increment(1)});
   try{
-    if(navigator.share){
-      await navigator.share({
-        title:"New Feature Announcement",
-        text:"Check out this update!",
-        url:location.href
-      });
-    }else{
-      throw 0;
-    }
+    await navigator.share({title:"Update",url:location.href});
   }catch{
     await navigator.clipboard.writeText(location.href);
-    alert("Link copied! Ab share kar sakte ho 👍");
+    alert("Link copied 👍");
   }
-}
+};
 
-/* 💬 COMMENT */
-async function comment(){
-  const name = document.getElementById("nameInp").value.trim();
-  const text = document.getElementById("cmt").value.trim();
-  if(!name || !text){
-    alert("Name aur comment dono likho bhai");
-    return;
-  }
-
-  await addDoc(commentsRef,{ name, text, time:Date.now() });
+sendBtn.onclick=async()=>{
+  if(!nameInp.value||!cmt.value) return alert("Fill both fields");
+  await addDoc(commentsRef,{
+    name:nameInp.value,
+    text:cmt.value,
+    time:Date.now()
+  });
   await updateDoc(postRef,{commentsCount:increment(1)});
-  document.getElementById("cmt").value="";
-}
-
-/* EVENTS */
-document.getElementById("likeBtn").addEventListener("click", like);
-document.getElementById("shareBtn").addEventListener("click", sharePost);
-document.getElementById("sendBtn").addEventListener("click", comment);
-
-/* LIKE STATE */
-if(localStorage.getItem("liked_post")){
-  const btn=document.getElementById("likeBtn");
-  btn.disabled=true;
-  btn.innerText="❤️ Liked";
-  btn.style.opacity="0.6";
-}
+  cmt.value="";
+};
 </script>
-
-
 
 <style>
 *{box-sizing:border-box}
@@ -154,87 +110,88 @@ body{
   font-family:system-ui;
   display:flex;
   justify-content:center;
+  padding:10px;
 }
 .card{
-  width:380px;
+  width:100%;
+  max-width:420px;
   background:#fff;
-  margin:20px;
-  border-radius:5px;
+  border-radius:12px;
   overflow:hidden;
-  box-shadow:0 20px 40px rgba(0,0,0,.08);
+  box-shadow:0 15px 35px rgba(0,0,0,.08);
 }
 .card img{
   width:100%;
-  height:200px;
+  height:auto;
+  max-height:220px;
   object-fit:cover;
 }
-.header,.stats,.actions,.add-comment{padding:9px}
-.stats,.actions,.comments-box,.add-comment{
-  border-top:1px solid #e5e7eb;
+.header,.stats,.actions,.add-comment{padding:12px}
+.stats{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  font-size:14px;
 }
 .actions{
   display:flex;
-  justify-content:space-around;
+  gap:10px;
 }
 .actions button{
-  background:none;
+  flex:1;
+  padding:10px;
   border:none;
+  border-radius:8px;
+  background:#0284c7;
+  color:#fff;
   font-weight:600;
-  color:#0284c7;
-  cursor:pointer;
-}
-.pop{animation:pop .3s ease}
-@keyframes pop{
-  0%{transform:scale(1)}
-  50%{transform:scale(1.4)}
-  100%{transform:scale(1)}
 }
 .comments-box{
-  max-height:260px;
+  max-height:240px;
   overflow-y:auto;
-  padding:9px;
+  padding:12px;
+  border-top:1px solid #e5e7eb;
 }
 .comment{
   display:flex;
-  gap:8px;
-  margin-bottom:10px;
+  gap:10px;
+  margin-bottom:12px;
 }
 .avatar{
-  width:32px;height:32px;
-  background:#0284c7;color:#fff;
+  width:34px;height:34px;
+  background:#0284c7;
+  color:#fff;
   border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:600;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
-.comment p{margin:2px 0 0;font-size:13px;color:#374151}
 .add-comment{
   display:flex;
   flex-direction:column;
-  gap:6px;
+  gap:8px;
+  border-top:1px solid #e5e7eb;
 }
 .add-comment input, .add-comment button{
-  padding:9px;border-radius:8px;border:1px solid #d1d5db;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #d1d5db;
 }
 .add-comment button{
-  background:#0284c7;color:#fff;border:none;
+  background:#0284c7;
+  color:#fff;
+  border:none;
 }
-.button-wrap {
-  text-align: center;
-  margin-top: 20px;
-}
-
 </style>
 </head>
 
 <body>
-
-
 <div class="card">
   <img src="photo/gsaiashksajhsajsss.jpeg">
 
   <div class="header">
     <b>Official Update</b>
-    <p>We are excited to announce a new update.</p>
+    <p>Verified daily system announcements.</p>
   </div>
 
   <div class="stats">
@@ -257,6 +214,5 @@ body{
     <button id="sendBtn">Send</button>
   </div>
 </div>
-
 </body>
 </html>
