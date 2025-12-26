@@ -8,7 +8,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
   getFirestore, doc, collection, query, orderBy, limit,
-  onSnapshot, addDoc, updateDoc, increment, setDoc
+  onSnapshot, addDoc, updateDoc, increment,
+  getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 /* 🔥 FIREBASE CONFIG */
@@ -32,13 +33,16 @@ const format = n =>
   n>=1e6 ? (n/1e6).toFixed(1)+"M" :
   n>=1e3 ? (n/1e3).toFixed(1)+"K" : n;
 
-/* AUTO CREATE POST */
-await setDoc(postRef,{
-  views:345000,
-  likes:12900,
-  shares:56000,
-  commentsCount:12000
-},{merge:true});
+/* 🔒 INITIALIZE ONLY ONCE */
+const snap = await getDoc(postRef);
+if(!snap.exists()){
+  await setDoc(postRef,{
+    views:345000,
+    likes:12900,
+    shares:56000,
+    commentsCount:12000
+  });
+}
 
 /* REALTIME STATS */
 onSnapshot(postRef,s=>{
@@ -67,9 +71,9 @@ onSnapshot(q,snap=>{
   });
 });
 
-/* AUTO VIEWS */
+/* AUTO VIEWS (safe) */
 if(!sessionStorage.getItem("viewed")){
-  updateDoc(postRef,{views:increment(2)});
+  updateDoc(postRef,{views:increment(1)});
   sessionStorage.setItem("viewed","1");
 }
 
@@ -86,9 +90,9 @@ function like(){
   updateDoc(postRef,{likes:increment(1)});
   localStorage.setItem("liked_post","1");
 
-  btn.disabled = true;
-  btn.innerText = "❤️ Liked";
-  btn.style.opacity = "0.6";
+  btn.disabled=true;
+  btn.innerText="❤️ Liked";
+  btn.style.opacity="0.6";
 
   setTimeout(()=>btn.classList.remove("pop"),300);
 }
@@ -116,7 +120,6 @@ async function sharePost(){
 async function comment(){
   const name = document.getElementById("nameInp").value.trim();
   const text = document.getElementById("cmt").value.trim();
-
   if(!name || !text){
     alert("Name aur comment dono likho bhai");
     return;
@@ -127,19 +130,21 @@ async function comment(){
   document.getElementById("cmt").value="";
 }
 
-/* 🔗 EVENTS (IMPORTANT FIX) */
+/* EVENTS */
 document.getElementById("likeBtn").addEventListener("click", like);
 document.getElementById("shareBtn").addEventListener("click", sharePost);
 document.getElementById("sendBtn").addEventListener("click", comment);
 
-/* LIKE STATE ON LOAD */
+/* LIKE STATE */
 if(localStorage.getItem("liked_post")){
-  const btn = document.getElementById("likeBtn");
-  btn.disabled = true;
-  btn.innerText = "❤️ Liked";
-  btn.style.opacity = "0.6";
+  const btn=document.getElementById("likeBtn");
+  btn.disabled=true;
+  btn.innerText="❤️ Liked";
+  btn.style.opacity="0.6";
 }
 </script>
+
+
 
 <style>
 *{box-sizing:border-box}
@@ -213,13 +218,21 @@ body{
 .add-comment button{
   background:#0284c7;color:#fff;border:none;
 }
+.button-wrap {
+  text-align: center;
+  margin-top: 20px;
+}
+
 </style>
 </head>
 
 <body>
+<div class="button-wrap">
+  <a href="https://example.com" class="clean-btn">Visit Link</a>
+</div>
 
 <div class="card">
-  <img src="photo/gsaiashksajhsajsss.jpeg">
+  <img src="WhatsApp Image 2025-12-26 at 10.23.28 AM.jpeg">
 
   <div class="header">
     <b>Official Update</b>
