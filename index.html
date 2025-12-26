@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Announcement</title>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getFirestore, doc, collection, query, orderBy, limit,
+  onSnapshot, addDoc, updateDoc, increment, setDoc
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+/* 🔥 FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyD9Fm_uadnK2k0FMp35j_wbvY9vO3slHx8",
+  authDomain: "trustdollar-b632c.firebaseapp.com",
+  projectId: "trustdollar-b632c",
+  storageBucket: "trustdollar-b632c.appspot.com",
+  messagingSenderId: "859933758308",
+  appId: "1:859933758308:web:995733db2cc90cbab8e071"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const postRef = doc(db,"posts","announcement");
+const commentsRef = collection(postRef,"comments");
+
+/* helpers */
+const format = n =>
+  n>=1e6 ? (n/1e6).toFixed(1)+"M" :
+  n>=1e3 ? (n/1e3).toFixed(1)+"K" : n;
+
+/* AUTO CREATE POST */
+await setDoc(postRef,{
+  views:345000,
+  likes:12900,
+  shares:56000,
+  commentsCount:12000
+},{merge:true});
+
+/* REALTIME STATS */
+onSnapshot(postRef,s=>{
+  const d=s.data();
+  document.getElementById("views").innerText = format(d.views);
+  document.getElementById("likes").innerText = format(d.likes);
+  document.getElementById("shares").innerText = format(d.shares);
+  document.getElementById("cCount").innerText = format(d.commentsCount);
+});
+
+/* LOAD COMMENTS */
+const q = query(commentsRef, orderBy("time","desc"), limit(100));
+onSnapshot(q,snap=>{
+  const box = document.getElementById("comments");
+  box.innerHTML="";
+  snap.forEach(d=>{
+    const c=d.data();
+    box.innerHTML+=`
+      <div class="comment">
+        <div class="avatar">${c.name[0]}</div>
+        <div>
+          <b>${c.name}</b>
+          <p>${c.text}</p>
+        </div>
+      </div>`;
+  });
+});
+
+/* AUTO VIEWS */
+if(!sessionStorage.getItem("viewed")){
+  updateDoc(postRef,{views:increment(2)});
+  sessionStorage.setItem("viewed","1");
+}
+
+/* 👍 LIKE (ONE TIME PER USER) */
+function like(){
+  if(localStorage.getItem("liked_post")){
+    alert("Aap already like kar chuke ho ❤️");
+    return;
+  }
+
+  const btn = document.getElementById("likeBtn");
+  btn.classList.add("pop");
+
+  updateDoc(postRef,{likes:increment(1)});
+  localStorage.setItem("liked_post","1");
+
+  btn.disabled = true;
+  btn.innerText = "❤️ Liked";
+  btn.style.opacity = "0.6";
+
+  setTimeout(()=>btn.classList.remove("pop"),300);
+}
+
+/* 🔁 SHARE */
+async function sharePost(){
+  updateDoc(postRef,{shares:increment(1)});
+  try{
+    if(navigator.share){
+      await navigator.share({
+        title:"New Feature Announcement",
+        text:"Check out this update!",
+        url:location.href
+      });
+    }else{
+      throw 0;
+    }
+  }catch{
+    await navigator.clipboard.writeText(location.href);
+    alert("Link copied! Ab share kar sakte ho 👍");
+  }
+}
+
+/* 💬 COMMENT */
+async function comment(){
+  const name = document.getElementById("nameInp").value.trim();
+  const text = document.getElementById("cmt").value.trim();
+
+  if(!name || !text){
+    alert("Name aur comment dono likho bhai");
+    return;
+  }
+
+  await addDoc(commentsRef,{ name, text, time:Date.now() });
+  await updateDoc(postRef,{commentsCount:increment(1)});
+  document.getElementById("cmt").value="";
+}
+
+/* 🔗 EVENTS (IMPORTANT FIX) */
+document.getElementById("likeBtn").addEventListener("click", like);
+document.getElementById("shareBtn").addEventListener("click", sharePost);
+document.getElementById("sendBtn").addEventListener("click", comment);
+
+/* LIKE STATE ON LOAD */
+if(localStorage.getItem("liked_post")){
+  const btn = document.getElementById("likeBtn");
+  btn.disabled = true;
+  btn.innerText = "❤️ Liked";
+  btn.style.opacity = "0.6";
+}
+</script>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#f3f4f6;
+  font-family:system-ui;
+  display:flex;
+  justify-content:center;
+}
+.card{
+  width:380px;
+  background:#fff;
+  margin:20px;
+  border-radius:5px;
+  overflow:hidden;
+  box-shadow:0 20px 40px rgba(0,0,0,.08);
+}
+.card img{
+  width:100%;
+  height:200px;
+  object-fit:cover;
+}
+.header,.stats,.actions,.add-comment{padding:9px}
+.stats,.actions,.comments-box,.add-comment{
+  border-top:1px solid #e5e7eb;
+}
+.actions{
+  display:flex;
+  justify-content:space-around;
+}
+.actions button{
+  background:none;
+  border:none;
+  font-weight:600;
+  color:#0284c7;
+  cursor:pointer;
+}
+.pop{animation:pop .3s ease}
+@keyframes pop{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.4)}
+  100%{transform:scale(1)}
+}
+.comments-box{
+  max-height:260px;
+  overflow-y:auto;
+  padding:9px;
+}
+.comment{
+  display:flex;
+  gap:8px;
+  margin-bottom:10px;
+}
+.avatar{
+  width:32px;height:32px;
+  background:#0284c7;color:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:600;
+}
+.comment p{margin:2px 0 0;font-size:13px;color:#374151}
+.add-comment{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.add-comment input, .add-comment button{
+  padding:9px;border-radius:8px;border:1px solid #d1d5db;
+}
+.add-comment button{
+  background:#0284c7;color:#fff;border:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <img src="WhatsApp Image 2025-12-26 at 10.23.28 AM.jpeg">
+
+  <div class="header">
+    <b>Official Update</b>
+    <p>We are excited to announce a new update.</p>
+  </div>
+
+  <div class="stats">
+    👁️ <b id="views"></b>
+    👍 <b id="likes"></b>
+    🔁 <b id="shares"></b>
+    💬 <b id="cCount"></b>
+  </div>
+
+  <div class="actions">
+    <button id="likeBtn">👍 Like</button>
+    <button id="shareBtn">🔁 Share</button>
+  </div>
+
+  <div class="comments-box" id="comments"></div>
+
+  <div class="add-comment">
+    <input id="nameInp" placeholder="Your name">
+    <input id="cmt" placeholder="Write comment">
+    <button id="sendBtn">Send</button>
+  </div>
+</div>
+
+</body>
+</html>
