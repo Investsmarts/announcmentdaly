@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Announcement</title>
+<title>TrusTDollar – Official Update</title>
+
+<!-- 🔗 Open Graph (Share Preview) -->
+<meta property="og:title" content="TrusTDollar – Official Update">
+<meta property="og:description" content="Build your income with trust & transparency. Verified daily system announcements.">
+<meta property="og:image" content="https://yourdomain.com/photo/share-banner.jpg">
+<meta property="og:type" content="website">
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -33,6 +39,7 @@ const format = n =>
   n>=1e6 ? (n/1e6).toFixed(1)+"M" :
   n>=1e3 ? (n/1e3).toFixed(1)+"K" : n;
 
+/* 🔒 INIT ONCE */
 const snap = await getDoc(postRef);
 if(!snap.exists()){
   await setDoc(postRef,{
@@ -43,6 +50,7 @@ if(!snap.exists()){
   });
 }
 
+/* 🔁 REALTIME STATS */
 onSnapshot(postRef,s=>{
   const d=s.data();
   views.innerText=format(d.views);
@@ -51,6 +59,7 @@ onSnapshot(postRef,s=>{
   cCount.innerText=format(d.commentsCount);
 });
 
+/* 💬 COMMENTS */
 const q=query(commentsRef,orderBy("time","desc"),limit(100));
 onSnapshot(q,snap=>{
   comments.innerHTML="";
@@ -67,39 +76,79 @@ onSnapshot(q,snap=>{
   });
 });
 
+/* 👁️ AUTO VIEW (SAFE) */
 if(!sessionStorage.getItem("viewed")){
   updateDoc(postRef,{views:increment(1)});
   sessionStorage.setItem("viewed","1");
 }
 
-likeBtn.onclick=()=>{
-  if(localStorage.getItem("liked_post")) return alert("Already liked ❤️");
-  updateDoc(postRef,{likes:increment(1)});
-  localStorage.setItem("liked_post","1");
-  likeBtn.innerText="❤️ Liked";
-  likeBtn.disabled=true;
-};
+window.addEventListener("DOMContentLoaded",()=>{
 
-shareBtn.onclick=async()=>{
-  updateDoc(postRef,{shares:increment(1)});
-  try{
-    await navigator.share({title:"Update",url:location.href});
-  }catch{
-    await navigator.clipboard.writeText(location.href);
-    alert("Link copied 👍");
+  /* 👍 LIKE */
+  likeBtn.onclick=()=>{
+    if(localStorage.getItem("liked_post")){
+      alert("Already liked ❤️");
+      return;
+    }
+    updateDoc(postRef,{likes:increment(1)});
+    localStorage.setItem("liked_post","1");
+    likeBtn.innerText="❤️ Liked";
+    likeBtn.disabled=true;
+    likeBtn.style.opacity="0.6";
+  };
+
+  if(localStorage.getItem("liked_post")){
+    likeBtn.innerText="❤️ Liked";
+    likeBtn.disabled=true;
+    likeBtn.style.opacity="0.6";
   }
-};
 
-sendBtn.onclick=async()=>{
-  if(!nameInp.value||!cmt.value) return alert("Fill both fields");
-  await addDoc(commentsRef,{
-    name:nameInp.value,
-    text:cmt.value,
-    time:Date.now()
-  });
-  await updateDoc(postRef,{commentsCount:increment(1)});
-  cmt.value="";
-};
+  /* 🔁 SHARE (IMAGE + TEXT) */
+  shareBtn.onclick = async () => {
+    updateDoc(postRef,{shares:increment(1)});
+
+    const shareText =
+`TrusTDollar ✅
+
+Build your income with trust & transparency.
+Verified daily system announcements.
+
+👉 Join & stay updated`;
+
+    try{
+      if(navigator.share){
+        await navigator.share({
+          title: "TrusTDollar – Official Update",
+          text: shareText,
+          url: location.href
+        });
+      }else{
+        throw 0;
+      }
+    }catch{
+      await navigator.clipboard.writeText(
+        shareText + "\n\n" + location.href
+      );
+      alert("Link copied 👍 Ab share karo");
+    }
+  };
+
+  /* ✍️ COMMENT */
+  sendBtn.onclick=async()=>{
+    if(!nameInp.value||!cmt.value){
+      alert("Name aur comment dono likho");
+      return;
+    }
+    await addDoc(commentsRef,{
+      name:nameInp.value,
+      text:cmt.value,
+      time:Date.now()
+    });
+    await updateDoc(postRef,{commentsCount:increment(1)});
+    cmt.value="";
+  };
+
+});
 </script>
 
 <style>
@@ -145,6 +194,7 @@ body{
   background:#0284c7;
   color:#fff;
   font-weight:600;
+  cursor:pointer;
 }
 .comments-box{
   max-height:240px;
@@ -165,6 +215,7 @@ body{
   display:flex;
   align-items:center;
   justify-content:center;
+  font-weight:600;
 }
 .add-comment{
   display:flex;
